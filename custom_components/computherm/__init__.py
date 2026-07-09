@@ -80,3 +80,20 @@ class BroadlinkThermostat:
             _LOGGER.warning("Thermostat %s read_status() error: %s", self._host, str(e))
         finally:
             return data
+
+    def read_raw_registers(self, start=0, count=60):
+        """Read raw register data for discovery of undocumented features.
+
+        Returns the raw byte payload from the device.
+        Use this to discover fan speed registers or other hidden features.
+        """
+        raw = None
+        try:
+            device = self.device()
+            if device.auth():
+                raw = device.send_request([0x01, 0x03, start >> 8, start & 0xFF, count >> 8, count & 0xFF])
+                _LOGGER.debug("Raw registers [%d..%d] from %s: %s", start, start + count, self._host, raw.hex())
+        except Exception as e:
+            _LOGGER.warning("Thermostat %s read_raw_registers() error: %s", self._host, str(e))
+        finally:
+            return raw

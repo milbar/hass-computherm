@@ -97,6 +97,21 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             })
         )
 
+    async def handle_dump_registers(call):
+        entity_id = call.data.get("entity_id")
+        for entity in entities:
+            if entity.entity_id == entity_id:
+                await entity.async_dump_registers()
+                return
+
+    if not hass.services.has_service("computherm", "dump_registers"):
+        hass.services.async_register(
+            "computherm", "dump_registers", handle_dump_registers,
+            schema=vol.Schema({
+                vol.Required("entity_id"): cv.entity_id,
+            })
+        )
+
 
 class ComputhermClimate(ClimateEntity, RestoreEntity):
     _enable_turn_on_off_backwards_compatibility = False
@@ -257,6 +272,9 @@ class ComputhermClimate(ClimateEntity, RestoreEntity):
         # Set thermostat time
         self._hass.async_add_executor_job(self._thermostat.set_time)
 
+        # Dump raw registers for feature discovery (fan speed, etc.)
+        self._hass.async_add_executor_job(self._dump_raw_registers)
+
         # Restore
         last_state = await self.async_get_last_state()
 
@@ -319,6 +337,28 @@ class ComputhermClimate(ClimateEntity, RestoreEntity):
                 device.set_temp(self._manual_set_point)
 
         self.async_write_ha_state()
+
+    def _dump_raw_registers(self) -> None:
+        """Dump raw register data for feature discovery."""
+        try:
+            raw = self._thermostat.read_raw_registers(0, 60)
+            if raw:
+                _LOGGER.warning("Raw register dump for %s (hex): %s", self._name, raw.hex())
+                _LOGGER.warning("Raw register dump for %s (bytes): %s", self._name, list(raw))
+                known = {3: "remote_lock", 4: "power/active/heat_cool",
+                         5: "room_temp", 6: "thermostat_temp", 7: "auto/loop",
+                         8: "sensor", 9: "osv", 10: "dif", 11: "svh", 12: "svl",
+                         13: "room_temp_adj", 15: "fre", 16: "poweron", 17: "unknown",
+                         18: "external_temp"}
+                for i, v in enumerate(raw):
+                    label = known.get(i, "")
+                    _LOGGER.warning("  reg[%3d] = 0x%02x (%3d)  %s", i, v, v, label)
+        except Exception as e:
+            _LOGGER.warning("Raw register dump failed: %s", str(e))
+
+    async def async_dump_registers(self) -> None:
+        """Dump raw registers to the log (for discovering fan speed, etc.)."""
+        await self._hass.async_add_executor_job(self._dump_raw_registers)
 
     async def async_set_child_lock(self, child_lock: bool) -> None:
         """Set child lock on or off."""

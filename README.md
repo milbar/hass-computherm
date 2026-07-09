@@ -141,6 +141,24 @@ This integration works with Broadlink Hysen-based thermostats, including:
 
 If your thermostat works with the **Broadlink** app and has a similar form factor, it will likely work.
 
+## Fan speed — investigation in progress
+
+The standard Broadlink Hysen protocol does **not** expose fan speed control. However, Computherm fancoil thermostats may have **undocumented registers** for this.
+
+To help discover fan speed support:
+
+1. Call the diagnostic service:
+   ```yaml
+   service: computherm.dump_registers
+   data:
+     entity_id: climate.office_thermostat
+   ```
+2. Check the Home Assistant logs (`config/home-assistant.log`) for the raw register dump
+3. **Change the fan speed on the physical thermostat**, then call the service again
+4. Compare the two dumps — any byte that changed between them is likely the fan speed register
+
+If you find it, open an issue or PR and we'll add it to the integration.
+
 ## License
 
 Apache 2.0
