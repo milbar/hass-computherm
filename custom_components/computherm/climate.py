@@ -89,13 +89,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
                 return
 
     if not hass.services.has_service("computherm", "set_child_lock"):
-        hass.services.async_register(
-            "computherm", "set_child_lock", handle_set_child_lock,
-            schema=vol.Schema({
-                vol.Required("entity_id"): cv.entity_id,
-                vol.Required("child_lock"): cv.boolean,
-            })
-        )
+        hass.services.async_register("computherm", "set_child_lock", handle_set_child_lock)
 
     async def handle_dump_registers(call):
         entity_id = call.data.get("entity_id")
@@ -105,12 +99,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
                 return
 
     if not hass.services.has_service("computherm", "dump_registers"):
-        hass.services.async_register(
-            "computherm", "dump_registers", handle_dump_registers,
-            schema=vol.Schema({
-                vol.Required("entity_id"): cv.entity_id,
-            })
-        )
+        hass.services.async_register("computherm", "dump_registers", handle_dump_registers)
 
 
 class ComputhermClimate(ClimateEntity, RestoreEntity):

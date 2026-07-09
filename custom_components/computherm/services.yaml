@@ -1,0 +1,22 @@
+set_child_lock:
+  name: Set child lock
+  description: Lock or unlock the thermostat's physical buttons.
+  target:
+    entity:
+      integration: computherm
+      domain: climate
+  fields:
+    child_lock:
+      name: Child lock
+      description: true to lock, false to unlock
+      required: true
+      selector:
+        boolean:
+
+dump_registers:
+  name: Dump registers
+  description: Dump raw device registers to the log for discovering hidden features (fan speed, etc.).
+  target:
+    entity:
+      integration: computherm
+      domain: climate
