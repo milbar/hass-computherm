@@ -6,34 +6,8 @@ from datetime import datetime
 from homeassistant.const import (
     PRECISION_HALVES
 )
-from homeassistant.helpers import config_validation as cv
-import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
-
-DOMAIN = "computherm"
-
-async def async_setup(hass, config):
-    """Set up the Computherm integration."""
-    hass.data.setdefault(DOMAIN, {})
-
-    async def handle_set_child_lock(call):
-        entity_id = call.data.get("entity_id")
-        child_lock = call.data.get("child_lock", True)
-        entity = hass.data[DOMAIN].get(entity_id)
-        if entity:
-            await entity.async_set_child_lock(child_lock)
-
-    async def handle_dump_registers(call):
-        entity_id = call.data.get("entity_id")
-        entity = hass.data[DOMAIN].get(entity_id)
-        if entity:
-            await entity.async_dump_registers()
-
-    hass.services.async_register(DOMAIN, "set_child_lock", handle_set_child_lock)
-    hass.services.async_register(DOMAIN, "dump_registers", handle_dump_registers)
-
-    return True
 
 BROADLINK_ACTIVE = 1
 BROADLINK_IDLE = 0
@@ -107,11 +81,12 @@ class BroadlinkThermostat:
         finally:
             return data
 
-    def read_raw_registers(self, start=0, count=60):
+    def read_raw_registers(self, start=0, count=22):
         """Read raw register data for discovery of undocumented features.
 
-        Returns the raw byte payload from the device.
-        Use this to discover fan speed registers or other hidden features.
+        Returns the raw byte payload from the device, or None on error.
+        The standard Hysen protocol has 22 readable registers (addresses 0x00-0x15).
+        Some Computherm variants may have additional registers.
         """
         raw = None
         try:
@@ -123,3 +98,19 @@ class BroadlinkThermostat:
             _LOGGER.warning("Thermostat %s read_raw_registers() error: %s", self._host, str(e))
         finally:
             return raw
+
+    def scan_registers(self, max_count=30):
+        """Scan registers to find how many the device supports.
+
+        Tries increasing register counts to find the valid range.
+        Returns the maximum number of readable registers.
+        """
+        device = self.device()
+        if not device or not device.auth():
+            return 22
+        for count in range(22, max_count + 1):
+            try:
+                device.send_request([0x01, 0x03, 0x00, 0x00, count >> 8, count & 0xFF])
+            except Exception:
+                return count - 1
+        return max_count

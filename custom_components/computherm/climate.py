@@ -28,8 +28,7 @@ from custom_components.computherm import (
     BROADLINK_HEATING,
     BROADLINK_COOLING,
     BROADLINK_LOCK_OFF,
-    BROADLINK_LOCK_ON,
-    DOMAIN
+    BROADLINK_LOCK_ON
 )
 
 from homeassistant.components.climate import (
@@ -237,9 +236,6 @@ class ComputhermClimate(ClimateEntity, RestoreEntity):
         """Run when entity about to added."""
         await super().async_added_to_hass()
 
-        # Register entity so services can find it
-        self._hass.data[DOMAIN][self.entity_id] = self
-
         # Set thermostat time
         self._hass.async_add_executor_job(self._thermostat.set_time)
 
@@ -311,21 +307,36 @@ class ComputhermClimate(ClimateEntity, RestoreEntity):
 
     def _dump_raw_registers(self) -> None:
         """Dump raw register data for feature discovery."""
-        try:
-            raw = self._thermostat.read_raw_registers(0, 60)
-            if raw:
-                _LOGGER.warning("Raw register dump for %s (hex): %s", self._name, raw.hex())
-                _LOGGER.warning("Raw register dump for %s (bytes): %s", self._name, list(raw))
-                known = {3: "remote_lock", 4: "power/active/heat_cool",
-                         5: "room_temp", 6: "thermostat_temp", 7: "auto/loop",
-                         8: "sensor", 9: "osv", 10: "dif", 11: "svh", 12: "svl",
-                         13: "room_temp_adj", 15: "fre", 16: "poweron", 17: "unknown",
-                         18: "external_temp"}
-                for i, v in enumerate(raw):
-                    label = known.get(i, "")
-                    _LOGGER.warning("  reg[%3d] = 0x%02x (%3d)  %s", i, v, v, label)
-        except Exception as e:
-            _LOGGER.warning("Raw register dump failed: %s", str(e))
+        raw = self._thermostat.read_raw_registers(0, 22)
+        if raw and len(raw) > 3:
+            _LOGGER.warning("=== Raw register dump for %s ===", self._name)
+            data_start = 3  # skip Modbus header (addr, func, byte_count)
+            raw_data = raw[data_start:]
+            _LOGGER.warning("Hex: %s", raw_data.hex())
+            _LOGGER.warning("Bytes: %s", list(raw_data))
+            known = {
+                0: "reg00 (remote_lock...)",
+                1: "reg01 (power/active/heat_cool...)",
+                2: "reg02 (room_temp)",
+                3: "reg03 (thermostat_temp...)",
+                4: "reg04 (auto/loop_mode)",
+                5: "reg05 (sensor)",
+                6: "reg06 (osv)",
+                7: "reg07 (dif)",
+                8: "reg08 (svh)",
+                9: "reg09 (svl)",
+                10: "reg0A (room_temp_adj)",
+                12: "reg0C (fre)",
+                13: "reg0D (poweron)",
+                14: "reg0E (unknown)",
+                15: "reg0F (external_temp)",
+            }
+            for i, v in enumerate(raw_data):
+                label = known.get(i, "")
+                _LOGGER.warning("  byte[%3d] = 0x%02x (%3d)  %s", i, v, v, label)
+            _LOGGER.warning("=== End dump ===")
+        else:
+            _LOGGER.warning("Raw register dump returned no data (got %s)", raw)
 
     async def async_dump_registers(self) -> None:
         """Dump raw registers to the log (for discovering fan speed, etc.)."""
