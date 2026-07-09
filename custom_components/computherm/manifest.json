@@ -1,0 +1,10 @@
+{
+  "domain": "computherm",
+  "name": "Computherm Thermostat",
+  "documentation": "https://github.com/algirdasc/hass-floureon",
+  "dependencies": [],
+  "codeowners": ["@yourusername"],
+  "issue_tracker": "https://github.com/algirdasc/hass-floureon/issues",
+  "requirements": ["pythoncrc", "broadlink>=0.19.0"],
+  "version": "1.1.0"
+}
