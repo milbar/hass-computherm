@@ -6,8 +6,34 @@ from datetime import datetime
 from homeassistant.const import (
     PRECISION_HALVES
 )
+from homeassistant.helpers import config_validation as cv
+import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
+
+DOMAIN = "computherm"
+
+async def async_setup(hass, config):
+    """Set up the Computherm integration."""
+    hass.data.setdefault(DOMAIN, {})
+
+    async def handle_set_child_lock(call):
+        entity_id = call.data.get("entity_id")
+        child_lock = call.data.get("child_lock", True)
+        entity = hass.data[DOMAIN].get(entity_id)
+        if entity:
+            await entity.async_set_child_lock(child_lock)
+
+    async def handle_dump_registers(call):
+        entity_id = call.data.get("entity_id")
+        entity = hass.data[DOMAIN].get(entity_id)
+        if entity:
+            await entity.async_dump_registers()
+
+    hass.services.async_register(DOMAIN, "set_child_lock", handle_set_child_lock)
+    hass.services.async_register(DOMAIN, "dump_registers", handle_dump_registers)
+
+    return True
 
 BROADLINK_ACTIVE = 1
 BROADLINK_IDLE = 0

@@ -28,7 +28,8 @@ from custom_components.computherm import (
     BROADLINK_HEATING,
     BROADLINK_COOLING,
     BROADLINK_LOCK_OFF,
-    BROADLINK_LOCK_ON
+    BROADLINK_LOCK_ON,
+    DOMAIN
 )
 
 from homeassistant.components.climate import (
@@ -77,29 +78,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the generic thermostat platform."""
-    entities = [ComputhermClimate(hass, config)]
-    async_add_entities(entities)
-
-    async def handle_set_child_lock(call):
-        entity_id = call.data.get("entity_id")
-        child_lock = call.data.get("child_lock", True)
-        for entity in entities:
-            if entity.entity_id == entity_id:
-                await entity.async_set_child_lock(child_lock)
-                return
-
-    if not hass.services.has_service("computherm", "set_child_lock"):
-        hass.services.async_register("computherm", "set_child_lock", handle_set_child_lock)
-
-    async def handle_dump_registers(call):
-        entity_id = call.data.get("entity_id")
-        for entity in entities:
-            if entity.entity_id == entity_id:
-                await entity.async_dump_registers()
-                return
-
-    if not hass.services.has_service("computherm", "dump_registers"):
-        hass.services.async_register("computherm", "dump_registers", handle_dump_registers)
+    async_add_entities([ComputhermClimate(hass, config)])
 
 
 class ComputhermClimate(ClimateEntity, RestoreEntity):
@@ -257,6 +236,9 @@ class ComputhermClimate(ClimateEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to added."""
         await super().async_added_to_hass()
+
+        # Register entity so services can find it
+        self._hass.data[DOMAIN][self.entity_id] = self
 
         # Set thermostat time
         self._hass.async_add_executor_job(self._thermostat.set_time)
