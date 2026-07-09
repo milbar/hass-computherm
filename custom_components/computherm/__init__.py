@@ -99,18 +99,28 @@ class BroadlinkThermostat:
         finally:
             return raw
 
-    def scan_registers(self, max_count=30):
-        """Scan registers to find how many the device supports.
+    def scan_multiple_ranges(self):
+        """Try reading from different register ranges to find hidden features.
 
-        Tries increasing register counts to find the valid range.
-        Returns the maximum number of readable registers.
+        Some Computherm variants have fan speed or other controls
+        at register addresses beyond the standard 22.
         """
         device = self.device()
         if not device or not device.auth():
-            return 22
-        for count in range(22, max_count + 1):
+            return
+        ranges = [
+            (0x00, 22, "standard 0x00-0x15"),
+            (0x16, 10, "extended 0x16-0x1F"),
+            (0x20, 16, "extended 0x20-0x2F"),
+            (0x30, 16, "extended 0x30-0x3F"),
+            (0x40, 16, "extended 0x40-0x4F"),
+            (0x50, 16, "extended 0x50-0x5F"),
+            (0x60, 16, "extended 0x60-0x6F"),
+            (0x70, 16, "extended 0x70-0x7F"),
+        ]
+        for start, count, label in ranges:
             try:
-                device.send_request([0x01, 0x03, 0x00, 0x00, count >> 8, count & 0xFF])
-            except Exception:
-                return count - 1
-        return max_count
+                raw = device.send_request([0x01, 0x03, start >> 8, start & 0xFF, count >> 8, count & 0xFF])
+                _LOGGER.warning("Range %s (%d-%d): %s", label, start, start + count - 1, raw.hex())
+            except Exception as e:
+                _LOGGER.warning("Range %s (%d-%d): FAILED - %s", label, start, start + count - 1, str(e))

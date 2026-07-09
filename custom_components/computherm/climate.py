@@ -338,6 +338,10 @@ class ComputhermClimate(ClimateEntity, RestoreEntity):
         else:
             _LOGGER.warning("Raw register dump returned no data (got %s)", raw)
 
+        # Scan additional register ranges
+        _LOGGER.warning("=== Scanning additional register ranges ===")
+        self._thermostat.scan_multiple_ranges()
+
     async def async_dump_registers(self) -> None:
         """Dump raw registers to the log (for discovering fan speed, etc.)."""
         await self._hass.async_add_executor_job(self._dump_raw_registers)
